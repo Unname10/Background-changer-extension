@@ -1,0 +1,19 @@
+{
+	"manifest_version": 3,
+	"name": "Background 2",
+	"version": "1.0",
+	"description": "Change your background in any pages you want.",
+	"content_scripts": [
+		{
+			"js": ["scripts/content.js"],
+			"matches": ["https://*.google.com/*"]
+		}
+	],
+	"background": {
+		"service_worker": "background.js"
+	},
+	"action": {
+		"default_popup": "./popup/index.html"
+	},
+	"permissions": ["unlimitedStorage", "activeTab"]
+}
