@@ -25,6 +25,7 @@ export function MainView({ onNavigate }: { onNavigate: () => void }) {
 	const [scope, setScope] = useState<"page" | "website">("website");
 	const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string>("");
+	const [applyStatus, setApplyStatus] = useState<"idle" | "applying" | "success">("idle");
 
 	// Sync local selection with stored configuration
 	useEffect(() => {
@@ -58,7 +59,10 @@ export function MainView({ onNavigate }: { onNavigate: () => void }) {
 	}
 
 	const handleApply = async () => {
+		setApplyStatus("applying");
 		await applyImage(scope, selectedImageId);
+		setApplyStatus("success");
+		setTimeout(() => setApplyStatus("idle"), 2000);
 	};
 
 	const handleReset = async () => {
@@ -81,7 +85,7 @@ export function MainView({ onNavigate }: { onNavigate: () => void }) {
 				<div className="flex items-center gap-3 ml-2">
 					<button
 						onClick={onNavigate}
-						className="p-1 text-gray-400 hover:text-gray-700 transition-colors"
+						className="p-1 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
 						title="Trang đã chọn"
 					>
 						<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -144,7 +148,7 @@ export function MainView({ onNavigate }: { onNavigate: () => void }) {
 					<div className="flex p-1 bg-gray-100 rounded-lg">
 						<button
 							className={cn(
-								"flex-1 py-1.5 text-sm font-medium rounded-md transition-colors",
+								"flex-1 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
 								scope === "page" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
 							)}
 							onClick={() => setScope("page")}
@@ -153,7 +157,7 @@ export function MainView({ onNavigate }: { onNavigate: () => void }) {
 						</button>
 						<button
 							className={cn(
-								"flex-1 py-1.5 text-sm font-medium rounded-md transition-colors",
+								"flex-1 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
 								scope === "website" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
 							)}
 							onClick={() => setScope("website")}
@@ -173,16 +177,16 @@ export function MainView({ onNavigate }: { onNavigate: () => void }) {
 			<div className="p-4 flex gap-3 border-t border-gray-100 bg-white">
 				<button
 					onClick={handleReset}
-					className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+					className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
 				>
 					Đặt lại
 				</button>
 				<button
 					onClick={handleApply}
-					disabled={selectedImageId == null}
-					className="flex-1 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+					disabled={selectedImageId == null || applyStatus === "applying"}
+					className="flex-1 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 				>
-					Áp dụng nền
+					{applyStatus === "applying" ? "Đang áp dụng..." : applyStatus === "success" ? "Đã áp dụng ✓" : "Áp dụng nền"}
 				</button>
 			</div>
 		</div>

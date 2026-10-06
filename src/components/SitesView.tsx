@@ -12,7 +12,7 @@ export function SitesView({ onBack }: { onBack: () => void }) {
 		<div className="flex flex-col h-full bg-[#f4f4f5] text-gray-900 rounded-xl overflow-hidden min-h-[400px]">
 			{/* Header */}
 			<div className="flex items-center px-4 py-3 bg-white border-b border-gray-100">
-				<button onClick={onBack} className="mr-3 text-gray-600 hover:text-gray-900">
+				<button onClick={onBack} className="mr-3 text-gray-600 hover:text-gray-900 cursor-pointer">
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
 					</svg>
@@ -65,7 +65,7 @@ export function SitesView({ onBack }: { onBack: () => void }) {
 			<div className="p-4 bg-white border-t border-gray-100">
 				<button
 					onClick={onBack}
-					className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+					className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
 				>
 					Về màn hình chính
 				</button>
