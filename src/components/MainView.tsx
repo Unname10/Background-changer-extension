@@ -9,7 +9,7 @@ import { cn } from "../utils/cn";
 import { MSG } from "../lib/constants";
 
 export function MainView({ onNavigate }: { onNavigate: () => void }) {
-	const { hostname, pathname } = useActiveTab();
+	const { tabId, hostname, pathname } = useActiveTab();
 	const { images, uploadFiles, deleteImage, error: storeError } = useImageStore();
 	const {
 		enabled,
@@ -20,12 +20,15 @@ export function MainView({ onNavigate }: { onNavigate: () => void }) {
 		applyImage,
 		toggleSite,
 		updateOpacity,
-	} = useSiteConfig(hostname, pathname);
+	} = useSiteConfig(hostname, pathname, tabId);
 
 	const [scope, setScope] = useState<"page" | "website">("website");
 	const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string>("");
 	const [applyStatus, setApplyStatus] = useState<"idle" | "applying" | "success">("idle");
+	const [localOpacity, setLocalOpacity] = useState<number | null>(null);
+
+	const displayOpacity = localOpacity !== null ? localOpacity : opacity;
 
 	// Sync local selection with stored configuration
 	useEffect(() => {
@@ -68,6 +71,17 @@ export function MainView({ onNavigate }: { onNavigate: () => void }) {
 	const handleReset = async () => {
 		setSelectedImageId(null);
 		await applyImage(scope, null);
+	};
+
+	const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setLocalOpacity(parseFloat(e.target.value));
+	};
+
+	const handleOpacityCommit = () => {
+		if (localOpacity !== null) {
+			updateOpacity(localOpacity);
+			setLocalOpacity(null);
+		}
 	};
 
 	return (
@@ -129,15 +143,17 @@ export function MainView({ onNavigate }: { onNavigate: () => void }) {
 				<div className="mb-6">
 					<div className="flex justify-between text-sm mb-2">
 						<span className="font-semibold text-gray-800">Độ mờ</span>
-						<span className="text-gray-500">{Math.round(opacity * 100)}%</span>
+						<span className="text-gray-500">{Math.round(displayOpacity * 100)}%</span>
 					</div>
 					<input
 						type="range"
 						min="0"
 						max="1"
 						step="0.05"
-						value={opacity}
-						onChange={(e) => updateOpacity(parseFloat(e.target.value))}
+						value={displayOpacity}
+						onChange={handleOpacityChange}
+						onMouseUp={handleOpacityCommit}
+						onTouchEnd={handleOpacityCommit}
 						className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
 					/>
 				</div>

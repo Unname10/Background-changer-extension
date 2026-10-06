@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { MSG, hostKey, pageKey, enabledKey, opacityKey, DEFAULT_OPACITY } from "../lib/constants";
 
-export function useSiteConfig(hostname: string, pathname: string) {
+export function useSiteConfig(hostname: string, pathname: string, tabId?: number) {
 	const [enabled, setEnabled] = useState(true);
 	const [opacity, setOpacity] = useState(DEFAULT_OPACITY);
 	const [hostImageId, setHostImageId] = useState<number | null>(null);
@@ -37,6 +37,7 @@ export function useSiteConfig(hostname: string, pathname: string) {
 			imageId,
 			opacity,
 			enabled,
+			tabId,
 		});
 		if (scope === "website") setHostImageId(imageId);
 		else setPageImageId(imageId);
@@ -47,23 +48,13 @@ export function useSiteConfig(hostname: string, pathname: string) {
 			type: MSG.TOGGLE_SITE,
 			hostname,
 			enabled: newEnabled,
+			tabId,
 		});
 		setEnabled(newEnabled);
 	};
 
 	const updateOpacity = async (newOpacity: number) => {
 		setOpacity(newOpacity);
-		// Update without changing image
-		await chrome.runtime.sendMessage({
-			type: MSG.APPLY_IMAGE,
-			hostname,
-			pathname,
-			scope: "website", // Scope only matters for imageId, but we can just pass current imageId if we wanted, but we might overwrite.
-			// Actually, APPLY_IMAGE modifies both if we pass imageId. Let's just update storage directly for opacity to be safe
-		});
-		// To avoid issues with apply_image overwriting things, we can just use chrome.storage.local for opacity.
-		// Wait, APPLY_IMAGE takes imageId. If undefined, it might set it to null. 
-		// Let's just set storage directly for opacity.
 		await chrome.storage.local.set({ [opacityKey(hostname)]: newOpacity });
 	};
 

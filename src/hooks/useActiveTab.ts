@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 export function useActiveTab() {
+	const [tabId, setTabId] = useState<number | undefined>(undefined);
 	const [hostname, setHostname] = useState("");
 	const [pathname, setPathname] = useState("");
 	const [url, setUrl] = useState("");
@@ -8,6 +9,7 @@ export function useActiveTab() {
 	useEffect(() => {
 		chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
 			if (!tab || !tab.url) return;
+			setTabId(tab.id);
 			try {
 				const u = new URL(tab.url);
 				if (/^https?:$/.test(u.protocol)) {
@@ -19,5 +21,5 @@ export function useActiveTab() {
 		});
 	}, []);
 
-	return { hostname, pathname, url };
+	return { tabId, hostname, pathname, url };
 }
