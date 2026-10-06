@@ -81,10 +81,18 @@
 		if (myRun !== runId || !res?.ok) return;
 
 		const url = URL.createObjectURL(res.blob);
-		if (objectUrl) URL.revokeObjectURL(objectUrl);
-		objectUrl = url;
-		setUrl(url);
-		setOpacity(opacity);
+		const img = new Image();
+		img.onload = () => {
+			if (myRun !== runId) {
+				URL.revokeObjectURL(url);
+				return;
+			}
+			if (objectUrl) URL.revokeObjectURL(objectUrl);
+			objectUrl = url;
+			setUrl(url);
+			setOpacity(opacity);
+		};
+		img.src = url;
 	}
 
 	// ── Storage change listener ──────────────────────────────────────────────
@@ -121,10 +129,18 @@
 				.then((res) => {
 					if (myRun !== runId || !res?.ok) return;
 					const url = URL.createObjectURL(res.blob);
-					if (objectUrl) URL.revokeObjectURL(objectUrl);
-					objectUrl = url;
-					setUrl(url);
-					setOpacity(opacity);
+					const img = new Image();
+					img.onload = () => {
+						if (myRun !== runId) {
+							URL.revokeObjectURL(url);
+							return;
+						}
+						if (objectUrl) URL.revokeObjectURL(objectUrl);
+						objectUrl = url;
+						setUrl(url);
+						setOpacity(opacity);
+					};
+					img.src = url;
 				})
 				.catch(() => {});
 

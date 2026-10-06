@@ -62,7 +62,7 @@ async function injectIntoTab(tabId) {
 
 // ── Thumbnail helper ─────────────────────────────────────────────────────────
 
-async function makeThumb(blob, maxPx = 400, quality = 0.7) {
+async function makeThumb(blob, maxPx = 1280, quality = 0.6) {
 	const bitmap = await createImageBitmap(blob);
 	const scale = Math.min(1, maxPx / Math.max(bitmap.width, bitmap.height));
 	const w = Math.round(bitmap.width * scale);
@@ -131,7 +131,7 @@ const handlers = {
 		if (imageId != null) {
 			const record = await db.getImage(imageId);
 			if (record) {
-				const thumb = await makeThumb(record.blob, 400, 0.7);
+				const thumb = await makeThumb(record.blob, 1280, 0.6);
 				await chrome.storage.local.set({ [thumbKey(hostname)]: thumb });
 			}
 		}
