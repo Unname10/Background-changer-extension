@@ -1,13 +1,21 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { MainView } from "./components/MainView";
+import { SitesView } from "./components/SitesView";
+
+type View = "main" | "sites";
 
 function App() {
-	const [favUrl, setFavUrl] = useState<string>("");
+	const [view, setView] = useState<View>("main");
 
-	useEffect(() => {
-		chrome.tabs.query({ active: true, currentWindow: true }).then((r) => setFavUrl(r[0].favIconUrl || ""));
-	}, []);
-
-	return <h1>Hello {favUrl}</h1>;
+	return (
+		<div className="w-full h-full font-sans bg-[#f4f4f5]">
+			{view === "main" ? (
+				<MainView onNavigate={() => setView("sites")} />
+			) : (
+				<SitesView onBack={() => setView("main")} />
+			)}
+		</div>
+	);
 }
 
 export default App;

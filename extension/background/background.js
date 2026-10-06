@@ -1,0 +1,146 @@
+// Service worker: cầu nối giữa popup / content script và IndexedDB.
+import {
+	MSG,
+	hostKey,
+	pageKey,
+	enabledKey,
+	opacityKey,
+	thumbKey,
+	scriptRegIdKey,
+	DEFAULT_OPACITY,
+} from "../shared/constants.js";
+import * as db from "./db.js";
+
+async function getOrCreateScriptId(hostname) {
+	const key = scriptRegIdKey(hostname);
+	const stored = await chrome.storage.local.get(key);
+	if (stored[key]) return stored[key];
+
+	const id = crypto.randomUUID();
+	await chrome.storage.local.set({ [key]: id });
+	return id;
+}
+
+async function syncContentScript(hostname, enabled) {
+	const id = await getOrCreateScriptId(hostname);
+	const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
+
+	if (!enabled) {
+		if (existing.length > 0) {
+			await chrome.scripting.unregisterContentScripts({ ids: [id] });
+		}
+		return;
+	}
+
+	const descriptor = {
+		id,
+		matches: [`*://${hostname}/*`],
+		js: ["scripts/content.js"],
+		css: ["scripts/content.css"],
+		runAt: "document_start",
+		persistAcrossSessions: true,
+	};
+
+	if (existing.length > 0) {
+		await chrome.scripting.updateContentScripts([descriptor]);
+	} else {
+		await chrome.scripting.registerContentScripts([descriptor]);
+	}
+}
+
+async function makeThumb(blob, maxPx = 400, quality = 0.7) {
+	const bitmap = await createImageBitmap(blob);
+	const scale = Math.min(1, maxPx / Math.max(bitmap.width, bitmap.height));
+	const w = Math.round(bitmap.width * scale);
+	const h = Math.round(bitmap.height * scale);
+	const canvas = new OffscreenCanvas(w, h);
+	canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+	bitmap.close();
+	const out = await canvas.convertToBlob({ type: "image/jpeg", quality });
+	return new Promise((resolve) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(reader.result);
+		reader.readAsDataURL(out);
+	});
+}
+
+const handlers = {
+	[MSG.SAVE_IMAGE]: async ({ name, mime, blob }) => {
+		const id = await db.saveImage({ name, type: mime, blob });
+		return { id };
+	},
+
+	[MSG.LIST_IMAGES]: async () => {
+		const rows = await db.listImages();
+		return {
+			images: rows.map(({ id, name, type, blob, createdAt }) => ({
+				id,
+				name,
+				type,
+				size: blob.size,
+				createdAt,
+			})),
+		};
+	},
+
+	[MSG.GET_IMAGE]: async ({ id }) => {
+		const record = await db.getImage(id);
+		if (!record) throw new Error("Không tìm thấy ảnh");
+		return {
+			name: record.name,
+			mime: record.type,
+			blob: record.blob,
+		};
+	},
+
+	[MSG.DELETE_IMAGE]: async ({ id }) => {
+		await db.deleteImage(id);
+		return {};
+	},
+
+	[MSG.APPLY_IMAGE]: async ({ hostname, pathname, scope, imageId, opacity, enabled }) => {
+		const updates = {
+			[enabledKey(hostname)]: enabled ?? true,
+			[opacityKey(hostname)]: opacity ?? DEFAULT_OPACITY,
+		};
+
+		if (scope === "website") {
+			if (imageId == null) updates[hostKey(hostname)] = null;
+			else updates[hostKey(hostname)] = imageId;
+		} else if (scope === "page") {
+			if (imageId == null) updates[pageKey(hostname, pathname)] = null;
+			else updates[pageKey(hostname, pathname)] = imageId;
+		}
+
+		// Tạo thumbnail
+		if (imageId != null) {
+			const record = await db.getImage(imageId);
+			if (record) {
+				const thumb = await makeThumb(record.blob, 400, 0.7);
+				updates[thumbKey(hostname)] = thumb;
+			}
+		}
+
+		await chrome.storage.local.set(updates);
+		await syncContentScript(hostname, enabled ?? true);
+		return { ok: true };
+	},
+
+	[MSG.TOGGLE_SITE]: async ({ hostname, enabled }) => {
+		await chrome.storage.local.set({ [enabledKey(hostname)]: enabled });
+		await syncContentScript(hostname, enabled);
+		return { ok: true };
+	},
+};
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	if (sender.id !== chrome.runtime.id) return false;
+	const handler = handlers[message?.type];
+	if (!handler) return false;
+
+	handler(message)
+		.then((data) => sendResponse({ ok: true, ...data }))
+		.catch((err) => sendResponse({ ok: false, error: err.message }));
+
+	return true; // giữ kênh mở cho async
+});
