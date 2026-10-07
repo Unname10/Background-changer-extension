@@ -51,6 +51,23 @@
 		document.documentElement.style.setProperty("--bgc-opacity", opacity);
 	}
 
+	function currentOpacity() {
+		return parseFloat(document.documentElement.style.getPropertyValue("--bgc-opacity")) || 0.2;
+	}
+
+	function swapToUrl(url, opacity) {
+		const img = new Image();
+		const myRun = runId;
+		img.onload = () => {
+			if (myRun !== runId) { URL.revokeObjectURL(url); return; }
+			if (objectUrl) URL.revokeObjectURL(objectUrl);
+			objectUrl = url;
+			setUrl(url);
+			setOpacity(opacity);
+		};
+		img.src = url;
+	}
+
 	// ── Init: load on page start ─────────────────────────────────────────────
 
 	async function init() {
@@ -58,8 +75,7 @@
 			HOST_KEY, PAGE_KEY, ENABLED_KEY, OPACITY_KEY, THUMB_KEY,
 		]);
 
-		const enabled = stored[ENABLED_KEY] ?? true;
-		if (!enabled) return;
+		if (!(stored[ENABLED_KEY] ?? true)) return;
 
 		const opacity = stored[OPACITY_KEY] ?? 0.2;
 		const imageId = stored[PAGE_KEY] ?? stored[HOST_KEY];
@@ -81,18 +97,7 @@
 		if (myRun !== runId || !res?.ok) return;
 
 		const url = URL.createObjectURL(res.blob);
-		const img = new Image();
-		img.onload = () => {
-			if (myRun !== runId) {
-				URL.revokeObjectURL(url);
-				return;
-			}
-			if (objectUrl) URL.revokeObjectURL(objectUrl);
-			objectUrl = url;
-			setUrl(url);
-			setOpacity(opacity);
-		};
-		img.src = url;
+		swapToUrl(url, opacity);
 	}
 
 	// ── Storage change listener ──────────────────────────────────────────────
@@ -105,54 +110,33 @@
 		const opacityChanged = changes[OPACITY_KEY];
 
 		if (imgChanged || enabledChanged) {
-			// Re-run full init to handle image switch / toggle off
-			const newEnabled = enabledChanged
-				? enabledChanged.newValue
-				: (document.documentElement.style.getPropertyValue("--bgc-opacity") !== "");
-
 			if (enabledChanged && !enabledChanged.newValue) {
 				unmount();
 				return;
 			}
 
-			// New imageId: fetch full-res (thumbnail comes separately via THUMB_KEY change)
 			const myRun = ++runId;
-			const imageIdEntry = (changes[HOST_KEY] || changes[PAGE_KEY]);
-			const newImageId = imageIdEntry?.newValue ?? null;
+			const imageIdEntry = imgChanged || changes[HOST_KEY];
+			const newImageId = (changes[PAGE_KEY] || changes[HOST_KEY])?.newValue ?? null;
 
 			if (newImageId == null) { unmount(); return; }
 
-			const opacity = opacityChanged?.newValue
-				?? (parseFloat(document.documentElement.style.getPropertyValue("--bgc-opacity")) || 0.2);
+			const opacity = opacityChanged?.newValue ?? currentOpacity();
 
 			chrome.runtime.sendMessage({ type: MSG_GET_IMAGE, id: newImageId })
 				.then((res) => {
 					if (myRun !== runId || !res?.ok) return;
-					const url = URL.createObjectURL(res.blob);
-					const img = new Image();
-					img.onload = () => {
-						if (myRun !== runId) {
-							URL.revokeObjectURL(url);
-							return;
-						}
-						if (objectUrl) URL.revokeObjectURL(objectUrl);
-						objectUrl = url;
-						setUrl(url);
-						setOpacity(opacity);
-					};
-					img.src = url;
+					swapToUrl(URL.createObjectURL(res.blob), opacity);
 				})
 				.catch(() => {});
 
 		} else if (opacityChanged) {
-			// Only opacity changed: update CSS var directly (smooth transition)
 			setOpacity(opacityChanged.newValue ?? 0.2);
 
 		} else if (changes[THUMB_KEY]?.newValue && !objectUrl) {
 			// Thumbnail arrived but no full-res yet (edge case on initial apply)
-			const opacity = opacityChanged?.newValue ?? 0.2;
 			setUrl(changes[THUMB_KEY].newValue);
-			setOpacity(opacity);
+			setOpacity(currentOpacity());
 		}
 	});
 

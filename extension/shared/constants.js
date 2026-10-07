@@ -1,5 +1,5 @@
 // Dùng chung cho popup và background (ES module).
-// Lưu ý: content/content.js là classic script nên sao chép lại vài hằng số cần thiết.
+// Lưu ý: content script (scripts/content.js) là classic script — các hằng số được khai báo lại trực tiếp.
 
 export const MSG = {
 	SAVE_IMAGE: "IMAGE_SAVE",

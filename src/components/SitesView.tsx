@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Toggle } from "./Toggle";
 import { useSiteList } from "../hooks/useSiteList";
 
-export function SitesView({ onBack }: { onBack: () => void }) {
-	const { sites, toggleSite } = useSiteList();
+export function SitesView({ onBack, tabId }: { onBack: () => void; tabId?: number }) {
+	const { sites, toggleSite } = useSiteList(tabId);
 	const [search, setSearch] = useState("");
 
 	const filtered = sites.filter((s) => s.hostname.includes(search.toLowerCase()));

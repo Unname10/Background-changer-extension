@@ -1,41 +1,41 @@
 import { useState, useEffect } from "react";
-import { MSG, enabledKey } from "../lib/constants";
+import { MSG, enabledKey, thumbKey } from "../lib/constants";
 
 export type SiteConfig = {
 	hostname: string;
 	enabled: boolean;
-	thumbnailUrl?: string; // We can load from hostThumb
+	thumbnailUrl?: string;
 	imageName?: string;
 };
 
-export function useSiteList() {
+export function useSiteList(tabId?: number) {
 	const [sites, setSites] = useState<SiteConfig[]>([]);
 
 	async function loadSites() {
-		// Use undefined to get all keys (chrome-types compatible)
 		const allData = (await chrome.storage.local.get()) as Record<string, any>;
 		const hostnames = new Set<string>();
 
-		// Find all hostnames that have a hostImage or pageImage
 		for (const key of Object.keys(allData)) {
+			// hostImage:{hostname}
 			if (key.startsWith("hostImage:")) {
-				hostnames.add(key.replace("hostImage:", ""));
-			} else if (key.startsWith("pageImage:")) {
-				const parts = key.split(":");
-				if (parts.length >= 3) {
-					hostnames.add(parts[1]);
-				}
+				hostnames.add(key.slice("hostImage:".length));
+			}
+			// pageImage:{hostname}:{pathname} — extract only hostname portion
+			if (key.startsWith("pageImage:")) {
+				const rest = key.slice("pageImage:".length);
+				// hostname is everything up to the first "/" which starts the pathname
+				const slashIdx = rest.indexOf("/");
+				hostnames.add(slashIdx === -1 ? rest : rest.slice(0, slashIdx));
 			}
 		}
 
 		const siteConfigs: SiteConfig[] = [];
 		for (const hostname of hostnames) {
 			const enabled = allData[enabledKey(hostname)] ?? true;
-			const thumb = allData[`hostThumb:${hostname}`];
-			
-			// Try to get image name from id
+			const thumbnailUrl = allData[thumbKey(hostname)];
+
 			const imageId = allData[`hostImage:${hostname}`];
-			let imageName = "Custom Image"; // default
+			let imageName = "Custom Image";
 			if (imageId != null) {
 				try {
 					const res = await chrome.runtime.sendMessage({ type: MSG.GET_IMAGE, id: imageId });
@@ -43,12 +43,7 @@ export function useSiteList() {
 				} catch {}
 			}
 
-			siteConfigs.push({
-				hostname,
-				enabled,
-				thumbnailUrl: thumb,
-				imageName,
-			});
+			siteConfigs.push({ hostname, enabled, thumbnailUrl, imageName });
 		}
 
 		setSites(siteConfigs);
@@ -63,8 +58,9 @@ export function useSiteList() {
 			type: MSG.TOGGLE_SITE,
 			hostname,
 			enabled: newEnabled,
+			tabId,
 		});
-		setSites(sites.map(s => s.hostname === hostname ? { ...s, enabled: newEnabled } : s));
+		setSites((prev) => prev.map((s) => s.hostname === hostname ? { ...s, enabled: newEnabled } : s));
 	}
 
 	return { sites, toggleSite };

@@ -46,8 +46,8 @@ async function syncContentScript(hostname, enabled) {
 		await chrome.scripting.registerContentScripts([descriptor]);
 }
 
-// Inject content script vào tab hiện tại (vì registerContentScripts
-// chỉ áp dụng cho tab mở MỚI, không inject vào tab đã mở)
+// Inject content script vào tab hiện tại ngay lập tức.
+// registerContentScripts chỉ áp dụng cho các navigation trong tương lai.
 async function injectIntoTab(tabId) {
 	if (!tabId) return;
 	try {
@@ -70,7 +70,7 @@ async function makeThumb(blob, maxPx = 1280, quality = 0.6) {
 	const canvas = new OffscreenCanvas(w, h);
 	canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
 	bitmap.close();
-	const out = await canvas.convertToBlob({ type: "image/jpeg", quality });
+	const out = await canvas.convertToBlob({ type: "image/webp", quality });
 	return new Promise((resolve) => {
 		const reader = new FileReader();
 		reader.onload = () => resolve(reader.result);
@@ -107,7 +107,7 @@ const handlers = {
 	},
 
 	[MSG.APPLY_IMAGE]: async ({ hostname, pathname, scope, imageId, opacity, enabled, tabId }) => {
-		// Bước 1: Lưu imageId + config ngay lập tức
+		// Bước 1: Lưu imageId + config ngay lập tức → content script phản hồi tức thì
 		const updates = {
 			[enabledKey(hostname)]: enabled ?? true,
 			[opacityKey(hostname)]: opacity ?? DEFAULT_OPACITY,
@@ -123,15 +123,17 @@ const handlers = {
 
 		await chrome.storage.local.set(updates);
 
-		// Bước 2: Đăng ký script + inject vào tab hiện tại
-		await syncContentScript(hostname, enabled ?? true);
-		await injectIntoTab(tabId);
+		// Bước 2: Song song — đăng ký script cho lần sau & inject vào tab hiện tại
+		await Promise.all([
+			syncContentScript(hostname, enabled ?? true),
+			injectIntoTab(tabId),
+		]);
 
-		// Bước 3: Tạo thumbnail (async, không block hiển thị)
+		// Bước 3: Tạo thumbnail (sau khi đã hiển thị, không block UX)
 		if (imageId != null) {
 			const record = await db.getImage(imageId);
 			if (record) {
-				const thumb = await makeThumb(record.blob, 1280, 0.6);
+				const thumb = await makeThumb(record.blob);
 				await chrome.storage.local.set({ [thumbKey(hostname)]: thumb });
 			}
 		}
@@ -141,8 +143,10 @@ const handlers = {
 
 	[MSG.TOGGLE_SITE]: async ({ hostname, enabled, tabId }) => {
 		await chrome.storage.local.set({ [enabledKey(hostname)]: enabled });
-		await syncContentScript(hostname, enabled);
-		await injectIntoTab(tabId);
+		await Promise.all([
+			syncContentScript(hostname, enabled),
+			injectIntoTab(tabId),
+		]);
 		return { ok: true };
 	},
 };

@@ -7,30 +7,16 @@ export type ImageRecord = {
 	type: string;
 	size: number;
 	createdAt: number;
-	thumbnailUrl?: string; // We'll fetch this lazily or generate it
 };
 
 export function useImageStore() {
 	const [images, setImages] = useState<ImageRecord[]>([]);
-	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 
 	async function fetchImages() {
-		try {
-			const res = await chrome.runtime.sendMessage({ type: MSG.LIST_IMAGES });
-			if (res?.ok) {
-				const fetchedImages = res.images as ImageRecord[];
-				// We also need thumbnails. We can fetch them lazily or ask background.
-				// Since we might have many images, doing it when rendering is better.
-				setImages(fetchedImages);
-			} else {
-				setError(res?.error || "Error fetching images");
-			}
-		} catch (err: any) {
-			setError(err.message);
-		} finally {
-			setLoading(false);
-		}
+		const res = await chrome.runtime.sendMessage({ type: MSG.LIST_IMAGES });
+		if (res?.ok) setImages(res.images as ImageRecord[]);
+		else setError(res?.error || "Không tải được danh sách ảnh.");
 	}
 
 	useEffect(() => {
@@ -49,13 +35,12 @@ export function useImageStore() {
 				setError(`${file.name}: vượt quá 30MB.`);
 				continue;
 			}
-			
-			// Compress image to blob before sending
+
+			// Resize xuống tối đa 1920px trước khi lưu
 			const bitmap = await createImageBitmap(file);
 			const scale = Math.min(1, 1920 / Math.max(bitmap.width, bitmap.height));
 			const w = Math.round(bitmap.width * scale);
 			const h = Math.round(bitmap.height * scale);
-
 			const canvas = document.createElement("canvas");
 			canvas.width = w;
 			canvas.height = h;
@@ -63,7 +48,7 @@ export function useImageStore() {
 			bitmap.close();
 
 			const blob = await new Promise<Blob>((resolve, reject) => {
-				canvas.toBlob((b) => (b ? resolve(b) : reject()), "image/png", 0.8);
+				canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Không tạo được blob"))), "image/png", 0.8);
 			});
 
 			const res = await chrome.runtime.sendMessage({
@@ -72,22 +57,19 @@ export function useImageStore() {
 				mime: "image/png",
 				blob,
 			});
-			
+
 			if (res?.ok) saved++;
 			else setError(res?.error ?? `Không lưu được ${file.name}.`);
 		}
-		
+
 		if (saved > 0) await fetchImages();
 	}
 
 	async function deleteImage(id: number) {
 		const res = await chrome.runtime.sendMessage({ type: MSG.DELETE_IMAGE, id });
-		if (res?.ok) {
-			await fetchImages();
-		} else {
-			setError(res?.error || "Không xoá được ảnh.");
-		}
+		if (res?.ok) await fetchImages();
+		else setError(res?.error || "Không xoá được ảnh.");
 	}
 
-	return { images, loading, error, uploadFiles, deleteImage };
+	return { images, error, uploadFiles, deleteImage };
 }
