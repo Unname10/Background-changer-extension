@@ -1,78 +1,55 @@
-# React + TypeScript + Vite
+# Background Changer Extension
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Một tiện ích mở rộng trên Chrome (Chrome Extension) cho phép bạn thay đổi hình nền của bất kỳ trang web nào để cá nhân hoá trải nghiệm duyệt web. Tiện ích được xây dựng với **React**, **TypeScript**, **Vite** và **TailwindCSS**, sử dụng Manifest V3 mới nhất của Chrome.
 
-Currently, two official plugins are available:
+## ✨ Tính năng nổi bật
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **🖼️ Thay đổi hình nền tùy thích**: Upload hình ảnh từ máy tính (hỗ trợ đến 30MB) và đặt làm hình nền cho bất kỳ trang web nào.
+- **🎯 Phạm vi áp dụng linh hoạt**: Bạn có thể chọn áp dụng hình nền cho **Cả website** (toàn bộ tên miền) hoặc chỉ áp dụng riêng cho **Trang này** (đường dẫn cụ thể).
+- **🎚️ Chỉnh độ mờ (Opacity) mượt mà**: Thay đổi độ mờ của hình nền thông qua thanh trượt. Hiệu ứng hiển thị mượt mà tức thì nhờ sử dụng CSS Variables.
+- **⚡ Hiệu suất siêu tốc (Zero-Latency Rendering)**: Cơ chế nén ảnh tạo Thumbnail (WebP) lưu vào `chrome.storage.local` kết hợp IndexedDB giúp hình nền tải ngay lập tức mà không gây giật lag (flicker) hay tốn nhiều tài nguyên khi trang vừa tải.
+- **🔋 Tối ưu hóa hệ thống**: Sử dụng cơ chế đăng ký script động (`chrome.scripting.registerContentScripts`), đảm bảo extension chỉ tiêm mã vào các trang web mà người dùng đã bật thay đổi hình nền, tiết kiệm bộ nhớ và tài nguyên trình duyệt.
+- **💾 Lưu trữ an toàn**: Tất cả dữ liệu hình ảnh được lưu trữ hoàn toàn cục bộ trên trình duyệt của bạn (Local Storage & IndexedDB), không cần server, đảm bảo quyền riêng tư.
 
-## React Compiler
+## 🛠️ Công nghệ sử dụng
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- **Frontend**: React 18, TypeScript, TailwindCSS, Vite.
+- **Extension API**: Manifest V3, `chrome.storage`, `chrome.scripting`, `chrome.runtime`.
+- **Lưu trữ**: IndexedDB (lưu trữ ảnh gốc chất lượng cao), Chrome Local Storage (lưu trữ thông số và ảnh thumbnail WebP).
 
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
+## 🚀 Hướng dẫn cài đặt và phát triển
 
-## Expanding the ESLint configuration
+Dự án này sử dụng Vite để build giao diện Popup, phần logic lõi của extension (Background Service Worker và Content Scripts) được đặt sẵn trong thư mục `extension/`.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 1. Yêu cầu hệ thống
+- Đã cài đặt [Node.js](https://nodejs.org/) (khuyến nghị phiên bản LTS).
+- Trình duyệt Google Chrome, Edge hoặc các trình duyệt sử dụng nhân Chromium.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+### 2. Cài đặt các gói phụ thuộc
+Mở terminal tại thư mục gốc của dự án và chạy:
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+### 3. Build mã nguồn
+Sau khi chỉnh sửa code trong thư mục `src/`, bạn cần build để cập nhật giao diện vào thư mục `extension/popup/`:
+```bash
+npm run build
 ```
+
+### 4. Cài đặt Extension vào Trình duyệt
+1. Mở trình duyệt Chrome và truy cập vào địa chỉ: `chrome://extensions/`
+2. Bật công tắc **Developer mode** (Chế độ dành cho nhà phát triển) ở góc trên bên phải.
+3. Nhấn vào nút **Load unpacked** (Tải tiện ích đã giải nén) ở góc trên bên trái.
+4. Trỏ đường dẫn đến thư mục `extension` bên trong dự án của bạn (`d:\Web\Background\extension`).
+5. Ghim extension lên thanh công cụ để bắt đầu sử dụng!
+
+## 📄 Cấu trúc thư mục
+
+- `src/`: Chứa mã nguồn React cho giao diện Popup.
+- `extension/`: Thư mục chính của tiện ích mở rộng (Extension).
+  - `background/`: Chứa `background.js` (Service Worker xử lý logic và gọi IndexedDB) và `db.js`.
+  - `scripts/`: Chứa `content.js` (Script được tiêm vào các trang web để render hình nền).
+  - `shared/`: Chứa file `constants.js` định nghĩa các key cấu hình dùng chung.
+  - `popup/`: (Được tạo ra sau khi build) Chứa file HTML/CSS/JS của giao diện Popup sinh ra bởi Vite.
+  - `manifest.json`: Tệp tin cấu hình chính của Chrome Extension.
